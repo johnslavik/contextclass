@@ -39,8 +39,8 @@ class Context[T: ContextLocal, **P]:
         self.constructor = constructor
         self.contextvar = contextvar
 
-    def _cm(self, *__never__: P.args, **kwargs: P.kwargs) -> Generator[T]:  # noqa: ARG002
-        value = self.constructor(**kwargs)
+    def _cm(self, *args: P.args, **kwargs: P.kwargs) -> Generator[T]:
+        value = self.constructor(*args, **kwargs)
         token = self.contextvar.set(value)
         try:
             yield value
@@ -48,8 +48,8 @@ class Context[T: ContextLocal, **P]:
             token.var.reset(token)
 
     @contextmanager
-    def __call__(self, *__never__: P.args, **kwargs: P.kwargs) -> Generator[T]:  # noqa: ARG002
-        return self._cm(**kwargs)
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Generator[T]:
+        return self._cm(*args, **kwargs)
 
 
 class _ContextGetter:
@@ -84,10 +84,10 @@ def context_of[T: ContextLocal, **P](context_class: Callable[P, T]) -> Context[T
 def enter[**P, T: Context](
     context_class: Callable[P, T],
     /,
-    *__never__: P.args,  # noqa: ARG001
+    *args: P.args,
     **kwargs: P.kwargs,
 ) -> Generator[T]:
-    return context_of(context_class)._cm(**kwargs)
+    return context_of(context_class)._cm(*args, **kwargs)
 
 
 class ContextLocal:
