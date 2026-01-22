@@ -1,0 +1,123 @@
+[project]
+name = "enter"
+dynamic = ["version"]
+description = "Dependency-free context-local state utilities for Python"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = ["mypy>=1.13.0", "pre-commit>=4.2.0", "ruff>=0.11.8"]
+test = [
+    "detect-test-pollution>=1.2.0",
+    "hypothesis>=6.131.0",
+    "inline-snapshot>=0.20.8",
+    "pytest>=8.3.4",
+    "pytest-accept>=0.1.12",
+    "pytest-mock>=3.14.0",
+    "pytest-subtests>=0.14.1",
+    "pytest-sugar>=1.0.0",
+]
+types = []
+docs = [
+    "markdown-exec>=1.10.3",
+    "mike>=2.1.3",
+    "mkdocs>=1.6.1",
+    "mkdocs-git-revision-date-localized-plugin>=1.4.5",
+    "mkdocs-macros-plugin>=1.3.7",
+    "mkdocs-material>=9.6.13",
+    "mkdocstrings>=0.29.1",
+    "mkdocstrings-python>=1.16.10",
+]
+
+[tool.uv]
+required-version = "~=0.9"
+default-groups = ["dev", "test", "types", "docs"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.mypy]
+strict = true
+explicit_package_bases = true
+exclude = ["build/", "docs/"]
+disable_error_code = ["import-untyped", "no-any-return"]
+
+[tool.pytest.ini_options]
+pythonpath = "."
+addopts = ["--import-mode=importlib", "--doctest-modules"]
+
+[tool.ruff.lint]
+exclude = ["**samples/**"]
+select = ["ALL"]
+ignore = [
+    # Description: Dynamically typed expressions (typing.Any) are disallowed
+    # Rationale:
+    #  We use Any to allow user to constrain return types of our functions on their own.
+    #  For example, having a function `def foo() -> Any: ...` allows user to write
+    #  `my_foo: int = foo()` and have it passed type checking, since `Any` as a gradual
+    #  form is assignable to any type
+    "ANN401",
+
+    # Description: 1 blank line required before class docstring
+    # Rationale: Remove the warning -- D211 (no-blank-line-before-class) preferred
+    "D203",
+
+    # Description: Multi-line docstring summary should start at the second line
+    # Rationale: Remove the warning -- D213 (multi-line-summary-second-line) preferred
+    "D212",
+
+    # Description: Line contains TODO, consider resolving the issue
+    # Rationale: Not appropriate for the project
+    "FIX002",
+
+    # Description: Implicitly concatenated string literals on one line
+    # Rationale: Conflicts with the formatter
+    "ISC001",
+
+    # Description: Function is too complex
+    # Rationale: Marginal importance
+    "C901",
+
+    # Description: Trailing comma missing
+    # Rationale: Conflicts with the formatter
+    "COM812",
+
+    # Description: File is part of an implicit namespace package. Add an `__init__.py`
+    # Rationale: Implicit namespace packages are a feature
+    "INP001",
+
+    # Description: Missing documentation
+    # Rationale: Important, but secondary concern
+    "D100", # Public module
+    "D101", # Public class
+    "D102", # Public method
+    "D103", # Public function
+    "D104", # Public package
+    "D105", # Magic method
+    "D107", # __init__
+
+    # Description: Use of `assert` detected
+    # Rationale: Assertions aren't bad and can be disabled with `python -O`
+    "S101",
+
+    # Description: Missing issue link on the line following this TODO
+    # Rationale: Own semantics
+    "TD003",
+
+    # Description: Wildcard imports used
+    # Rationale: Waiting for red knot to understand them
+    "F403",
+
+    # Description: Move third-party import into a type-checking block
+    # Rationale: Start-up time is not yet that important
+    "TC",
+
+    # Description: Private member accessed
+    # Rationale: In reality, this check causes more trouble than prevents bad things
+    "SLF001",
+
+    # Description: Pathlib lints
+    # Rationale: Pathlib is intentionally not used
+    "PTH",
+]
