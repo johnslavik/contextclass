@@ -14,14 +14,13 @@ class Context[C, **P]:
     >>> from dataclasses import dataclass
 
     >>> @dataclass
-    >>> class Foo(ContextLocal):
+    ... class Foo(ContextLocal):
     ...     x: int | None = None
 
     >>> @enter(Foo, x=1)
-    ... def x1() -> None:
-    ...     print(Foo.current.x)  # 1
-
-    >>> x1()
+    ... def f() -> None:
+    ...     print(Foo.current.x)
+    >>> f()
     1
 
     >>> with Foo.context(x=2):
@@ -29,11 +28,11 @@ class Context[C, **P]:
     2
 
     >>> @Foo.context(x=3)
-    ... def x3() -> None:
+    ... def f() -> None:
     ...     print(Foo.current.x)
-
-    >>> x3()
+    >>> f()
     3
+
     """
 
     def __init__(self, constructor: Callable[P, C], contextvar: ContextVar[C]) -> None:
