@@ -150,7 +150,7 @@ wheels = [
 
 [[package]]
 name = "contextclass"
-source = { virtual = "." }
+source = { editable = "." }
 
 [package.dev-dependencies]
 dev = [
