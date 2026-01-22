@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = []
 
 [dependency-groups]
-dev = ["mypy>=1.13.0", "pre-commit>=4.2.0", "ruff>=0.11.8"]
+dev = ["pre-commit>=4.2.0", "ruff>=0.11.8", "ty>=0.0.13"]
 test = [
     "detect-test-pollution>=1.2.0",
     "hypothesis>=6.131.0",
