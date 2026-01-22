@@ -1,7 +1,7 @@
 [project]
-name = "enter"
+name = "contextclass"
 dynamic = ["version"]
-description = "Dependency-free context-local state utilities for Python"
+description = "A nice interface to context variables"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []

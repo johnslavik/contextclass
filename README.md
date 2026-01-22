@@ -1,4 +1,4 @@
-# enter
+# contextclass
 Nicer interface to context variables in practical scenarios.
 
 ```pycon
