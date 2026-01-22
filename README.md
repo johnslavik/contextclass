@@ -5,8 +5,23 @@ Alternative interface to context variables for practical scenarios.
 >>> class Foo(ContextClass):
 ...     x: int | None = None
 
->>> with Foo.context(x=1):
+>>> @enter(Foo, x=1)
+... def f() -> None:
+...     print(Foo.current.x)  # 1
+
+>>> f()
+1
+
+>>> with Foo.context(x=2):
 ...     print(Foo.current.x)
+2
+
+>>> @Foo.context(x=3)
+... def f() -> None:
+...     print(Foo.current.x)
+
+>>> f()
+3
 ```
 
 Works with type hints:
