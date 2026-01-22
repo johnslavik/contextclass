@@ -2,7 +2,7 @@
 Alternative interface to context variables for practical scenarios.
 
 ```pycon
->>> from contextclass import ContextClass
+>>> from contextclass import ContextClass, enter
 
 >>> class Foo(ContextClass):
 ...     x: int | None = None
@@ -10,7 +10,6 @@ Alternative interface to context variables for practical scenarios.
 >>> @enter(Foo, x=1)
 ... def f() -> None:
 ...     print(Foo.current.x)  # 1
-
 >>> f()
 1
 
@@ -21,7 +20,6 @@ Alternative interface to context variables for practical scenarios.
 >>> @Foo.context(x=3)
 ... def f() -> None:
 ...     print(Foo.current.x)
-
 >>> f()
 3
 ```
