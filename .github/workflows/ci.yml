@@ -65,7 +65,7 @@ jobs:
 
     - name: Check type safety
       id: types
-      run: uv run mypy .
+      run: uv ty check .
       if: ${{ !cancelled() && steps.install.conclusion == 'success' }}
 
   release:

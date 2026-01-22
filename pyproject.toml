@@ -37,12 +37,6 @@ default-groups = ["dev", "test", "types", "docs"]
 [tool.hatch.version]
 source = "vcs"
 
-[tool.mypy]
-strict = true
-explicit_package_bases = true
-exclude = ["build/", "docs/"]
-disable_error_code = ["import-untyped", "no-any-return"]
-
 [tool.pytest.ini_options]
 pythonpath = "."
 addopts = ["--import-mode=importlib", "--doctest-modules"]

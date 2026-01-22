@@ -38,7 +38,7 @@ class Context[C, **P]:
         self.constructor = constructor
         self.contextvar = contextvar
 
-    def _cm(self, *__never__: P.args, **kwargs: P.kwargs) -> Generator[C]:
+    def _cm(self, *__never__: P.args, **kwargs: P.kwargs) -> Generator[C]:  # noqa: ARG002
         value = self.constructor(**kwargs)
         token = self.contextvar.set(value)
         try:
@@ -47,12 +47,16 @@ class Context[C, **P]:
             token.var.reset(token)
 
     @contextmanager
-    def __call__(self, *__never__: P.args, **kwargs: P.kwargs) -> Generator[C]:
+    def __call__(self, *__never__: P.args, **kwargs: P.kwargs) -> Generator[C]:  # noqa: ARG002
         return self._cm(**kwargs)
 
 
 class _ContextGetter:
-    def __get__[T, **P](self, instance: T, owner: Callable[P, T]) -> Context[T, P]:
+    def __get__[T: ContextClass, **P](
+        self,
+        instance: T,
+        owner: Callable[P, T],
+    ) -> Context[T, P]:
         return context_of(owner or type(instance))
 
 
@@ -63,19 +67,22 @@ class _CurrentInstanceGetter:
         owner: Callable[P, T],
     ) -> T:
         lens = owner if instance is None else instance
-        return lens.context.contextvar.get()
+        return lens.context.contextvar.get()  # type: ignore[possibly-missing-attribute]
 
 
 @cache
 def context_of[T, **P](context_class: Callable[P, T]) -> Context[T, P]:
-    return Context(context_class, ContextVar[T](context_class.__name__))
+    return Context(
+        context_class,
+        ContextVar[T](getattr(context_class, "__name__", f"{context_class}")),
+    )
 
 
 @contextmanager
 def enter[**P, C](
     context_class: Callable[P, C],
     /,
-    *args: P.args,
+    *__never__: P.args,  # noqa: ARG001
     **kwargs: P.kwargs,
 ) -> Generator[C]:
     return context_of(context_class)._cm(**kwargs)
