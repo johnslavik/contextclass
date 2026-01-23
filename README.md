@@ -30,4 +30,4 @@ Foo(x=1)
 
 Works with type hints:
 
-<img width="821" height="454" alt="image" src="https://github.com/user-attachments/assets/6c4f5b4b-48b5-4807-a6aa-bf9cd6b8e3e4" />
+<img width="675" height="313" alt="image" src="https://github.com/user-attachments/assets/b673cb86-e3f6-4a4d-9aa1-20eed251bc43" />
