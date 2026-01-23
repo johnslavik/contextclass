@@ -1,29 +1,30 @@
-# contextclass
+# contextmodels
 Alternative interface to context variables for practical scenarios.
 
 ```pycon
->>> from contextclass import ContextLocal, enter, current
+>>> from contextmodels import ContextModel, context_create, context_get
 >>> from dataclasses import dataclass
 
 >>> @dataclass
-... class Foo(ContextLocal):
+... class Foo(ContextModel):
 ...     x: int | None = None
 
->>> @enter(Foo, x=1)
+>>> @context_create(Foo, x=1)
 ... def f() -> None:
-...     print(current(Foo))
+...     print(context_get(Foo))
 >>> f()
 Foo(x=1)
 
->>> with Foo.context(x=2):
-...     print(Foo.current.x)
+>>> with Foo.model_context.create(x=2):
+...     print(Foo.model_current.x)
 2
 
->>> @Foo.context(x=3)
+>>> @Foo.model_context.create(x=3)
 ... def f() -> None:
-...     print(Foo.current.x)
+...     print(Foo.model_current.x)
 >>> f()
 3
+
 
 ```
 
