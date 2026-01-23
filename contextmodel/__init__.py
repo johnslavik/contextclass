@@ -1,147 +1,136 @@
-from collections.abc import Callable, Generator
-from contextlib import contextmanager
+from collections.abc import Callable
+from contextlib import ContextDecorator
 from contextvars import ContextVar, Token
 from functools import cache, partial
-from typing import ClassVar
+from typing import ClassVar, Self, overload
 
 
-class Context[M: ContextModel, **P]:
-    """
-    Context. Call it to create a new object.
+class ContextLifecycle[M](ContextDecorator):
+    def __init__(self, setter: Callable[[], Token[M]]) -> None:
+        self._setter = setter
+        self._token = None
 
-    >>> from dataclasses import dataclass
+    def __enter__(self) -> Token[M]:
+        self._token = self._setter()
+        return self._token
 
-    >>> @dataclass
-    ... class Foo(ContextModel):
-    ...     x: int | None = None
+    def __exit__(self, *exc_info: object) -> None:
+        self.reset()
 
-    >>> @context_create(Foo, x=1)
-    ... def f() -> None:
-    ...     print(context_get(Foo))
-    >>> f()
-    Foo(x=1)
+    def reset(self) -> None:
+        if self._token is None:
+            return
+        self._token.var.reset(self._token)
+        self._token = None
 
-    >>> with Foo.model_context.create(x=2):
-    ...     print(Foo.model_current.x)
-    2
 
-    >>> @Foo.model_context.create(x=3)
-    ... def f() -> None:
-    ...     print(Foo.model_current.x)
-    >>> f()
-    3
-
-    """
+class Context[M, **P]:
+    global_cache: ClassVar[dict[object, "Context"]] = {}
 
     def __init__(self, model_class: Callable[P, M], variable: ContextVar[M]) -> None:
         self.model_class = model_class
         self.variable = variable
 
-    def get(self) -> M:
-        return self.variable.get()
-
-    def set(self, model: M) -> Generator[Token[M]]:
-        token = self.variable.set(model)
+    def get_or_raise(self) -> M:
+        get = self.variable.get
         try:
-            yield token
-        finally:
-            token.var.reset(token)
+            return get()
+        except LookupError:
+            class_name = self.model_class.__qualname__  # type: ignore[possibly-missing-attribute]
+            msg = f"expected a context_enter({class_name}(...)) prior to this call"
+            raise LookupError(msg) from None
 
-    @contextmanager
-    def create(self, *args: P.args, **kwargs: P.kwargs) -> Generator[Token[M]]:
-        return self.set(self.model_class(*args, **kwargs))
+    def set(self, model: M) -> ContextLifecycle[M]:
+        return ContextLifecycle(lambda v=self.variable, m=model: v.set(m))
+
+    def create_api(self) -> "ContextAPI[M, P]":
+        return CachedContextAPI(self)
+
+    @staticmethod
+    def generate_variable_name(model_class: type[M]) -> str:
+        return model_class.__qualname__
+
+    @overload
+    @classmethod
+    def for_class(
+        cls, model_class: Callable[P, M], *, check_cache: bool = False
+    ) -> Self: ...
+    @overload
+    @classmethod
+    def for_class(
+        cls, model_class: Callable[P, M], *, check_cache: bool = True
+    ) -> "Context[M, P] | Self": ...
+
+    @classmethod
+    def for_class(
+        cls,
+        model_class: Callable[P, M],
+        *,
+        check_cache: bool = True,
+    ) -> "Context[M, P] | Self":
+        if check_cache:
+            cached = cls.global_cache.get(model_class)
+            if cached is not None:
+                return cached
+        variable_name = cls.generate_variable_name(model_class)  # type: ignore[invalid-argument-type]
+        new_context = cls(model_class, ContextVar(variable_name))
+        cls.global_cache[model_class] = new_context
+        return new_context
 
 
-def context_get[M: ContextModel](model_class: type[M]) -> M:
-    """
-    Get the current context model instance.
+class ContextAPI[M, **P]:
+    def __init__(self, manager: Context[M, P]) -> None:
+        self.manager = manager
 
-    >>> from dataclasses import dataclass, field
+    def get(self) -> M:
+        return self.manager.get_or_raise()
 
-    >>> @dataclass
-    ... class Foo(ContextModel):
-    ...     x: int = 1
+    def set(self, model: M) -> ContextLifecycle[M]:
+        return self.manager.set(model)
 
-    >>> with Foo.model_context.create(x=2):
-    ...     print(context_get(Foo))
-    Foo(x=2)
-    """
-    return context_of(model_class).get()
+    def init(self, *args: P.args, **kwargs: P.kwargs) -> ContextLifecycle[M]:
+        return self.manager.set(self.manager.model_class(*args, **kwargs))
 
 
-def future_context_get[M: ContextModel](model_class: type[M]) -> Callable[[], M]:
-    """
-    Return a callback to return a value from context. Useful as "factories".
+# Unbounded cache (one API per one manager) to avoid unnecessary allocations.
+CachedContextAPI = cache(ContextAPI)
 
-    >>> from dataclasses import dataclass, field
 
-    >>> @dataclass
-    ... class Foo(ContextModel):
-    ...     x: int = 1
+def context_get[M](model_class: type[M], context_class: type[Context] = Context) -> M:
+    """Get the current context model instance."""
+    return context_class.for_class(model_class, check_cache=True).get_or_raise()
 
-    >>> @dataclass
-    ... class MyData:
-    ...     foo: Foo = field(default_factory=future_context_get(Foo))
 
-    >>> MyData(foo=Foo())
-    MyData(foo=Foo(x=1))
-
-    >>> with Foo.model_context.create(x=2):
-    ...     print(MyData())
-    MyData(foo=Foo(x=2))
-
-    """
+def future_context_get[M](model_class: type[M]) -> Callable[[], M]:
+    """Return a callback to return a value from context. Useful as "factories"."""
     return partial(context_get, model_class)
 
 
-@cache
-def context_of[M: ContextModel, **P](
-    model_class: Callable[P, M],
-) -> Context[M, P]:
-    auto_name = getattr(model_class, "__name__", format(model_class))
-    return Context(model_class=model_class, variable=ContextVar[M](auto_name))
+def context_set[M](
+    model: M,
+    context_class: type[Context] = Context,
+) -> ContextLifecycle[M]:
+    context = context_class.for_class(model.__class__, check_cache=True)
+    return context.set(model)
 
 
-@contextmanager
-def context_create[**P, M: Context](
-    model_class: Callable[P, M],
-    /,
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> Generator[M]:
-    context = context_of(model_class)
-    return context.set(context.model_class(*args, **kwargs))
+class ContextAPIGetter:
+    def __call__[M, **P](self, model_class: Callable[P, M]) -> ContextAPI[M, P]:
+        return self.__get__(None, model_class)
+
+    def __get__[M, **P](self, _: M | None, owner: Callable[P, M]) -> ContextAPI[M, P]:
+        return Context.for_class(owner, check_cache=True).create_api()
 
 
-@contextmanager
-def context_set[**P, M: Context](
-    model_class: Callable[P, M],
-    /,
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> Generator[M]:
-    context = context_of(model_class)
-    return context.set(context.model_class(*args, **kwargs))
+class ModelGetter:
+    def __call__[M, **P](self, model_class: type[M]) -> M:
+        return self.__get__(None, model_class)
+
+    def __get__[M](self, _: M | None, owner: type[M]) -> M:
+        return context_get(owner)
 
 
-class _ContextGetter:
-    def __get__[M: ContextModel, **P](
-        self,
-        instance: M | None,
-        owner: Callable[P, M],
-    ) -> Context[M, P]:
-        return context_of(owner or type(instance))
+class WithContextAttribute:
+    """A descriptor-based API to avoid importing this package at user site."""
 
-
-class _ModelGetter:
-    def __get__[M: ContextModel, **P](
-        self,
-        instance: M | None,
-        owner: Callable[P, M],
-    ) -> M:
-        return context_get(owner if instance is None else instance)  # type: ignore[invalid-argument-type]
-
-
-class ContextModel:
-    model_context: ClassVar[_ContextGetter] = _ContextGetter()
-    model_current: ClassVar[_ModelGetter] = _ModelGetter()
+    context: ClassVar[ContextAPIGetter] = ContextAPIGetter()
