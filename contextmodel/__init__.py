@@ -88,7 +88,7 @@ class ContextAPI[M, **P]:
     def set(self, model: M) -> ContextLifecycle[M]:
         return self.manager.set(model)
 
-    def init(self, *args: P.args, **kwargs: P.kwargs) -> ContextLifecycle[M]:
+    def init(self, /, *args: P.args, **kwargs: P.kwargs) -> ContextLifecycle[M]:
         return self.manager.set(self.manager.model_class(*args, **kwargs))
 
 
